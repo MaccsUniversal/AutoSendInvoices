@@ -70,7 +70,7 @@ codeunit 60100 "Send UK Invoices"
                 TempBlob.CreateOutStream(OutStr);
                 Report.SaveAs(ReportSelection2."Report ID", GetParameters(SalesInvoiceHeader2."No."), ReportFormat::Pdf, OutStr);
                 TempBlob.CreateInStream(InStr);
-                EmailMessage.Create('moses@e-2go.net',
+                EmailMessage.Create(SalesInvoiceHeader2."Sell-to E-Mail",
                     Filename,
                     EmailBody.GetEmailBody(SalesInvoiceHeader2));
                 EmailMessage.AddAttachment(Filename, 'application/pdf', InStr);
