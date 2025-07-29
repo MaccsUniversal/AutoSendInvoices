@@ -1,9 +1,9 @@
-codeunit 60100 "Send UK Invoices"
+codeunit 99007 "Send UK Invoices"
 {
     Permissions = tabledata "Email Related Record" = RMI;
     trigger OnRun()
     begin
-
+        SendInvoices();
     end;
 
     local procedure GetParameters(SalesInvoiceNo: Code[20]) SalesInvRepParam: Text
@@ -19,6 +19,10 @@ codeunit 60100 "Send UK Invoices"
         PostingDate: Date;
         SalesInvoiceHeader: Record "Sales Invoice Header";
     begin
+        IsHandled := false;
+        OnBeforeFilterInvoices(CustomerNoFilter, CustomerPostingGroupFilter, PostingDate, SalesInvHdr, IsHandled);
+        if IsHandled then
+            exit(SalesInvHdr);
         CustomerNoFilter := '<>LEM*';
         CustomerPostingGroupFilter := '<>NON NOTIFY|UK*';
         PostingDate := Today() - 1;
@@ -28,6 +32,7 @@ codeunit 60100 "Send UK Invoices"
         SalesInvoiceHeader.SetFilter("Posting Date", Format(PostingDate));
         SalesInvoiceHeader.FindSet();
         SalesInvHdr.Copy(SalesInvoiceHeader);
+        OnAfterFilterInvoices(SalesInvHdr);
         exit(SalesInvHdr);
     end;
 
@@ -42,7 +47,7 @@ codeunit 60100 "Send UK Invoices"
         SelectedReport.Copy(ReportSelection);
     end;
 
-    procedure SendInvoices()
+    local procedure SendInvoices()
     var
         SalesInvoiceHeader2: Record "Sales Invoice Header";
         TempBlob: Codeunit "Temp Blob";
@@ -56,8 +61,13 @@ codeunit 60100 "Send UK Invoices"
         EmailMessage: Codeunit "Email Message";
         EmailBody: Codeunit "Auto Send Email Body";
     begin
+        IsHandled := false;
+        OnBeforeSendInvoices(IsHandled);
+        if IsHandled then
+            exit;
         SalesInvoiceHeader2 := FilterInvoices();
         ReportSelection2 := GetReportSelection();
+        OnAfterSetFilterAndSelections(SalesInvoiceHeader2, ReportSelection2);
         repeat
             EmailRelatedRecord.Reset();
             EmailRelatedRecord.SetRange("System Id", SalesInvoiceHeader2.SystemId);
@@ -85,5 +95,26 @@ codeunit 60100 "Send UK Invoices"
         until SalesInvoiceHeader2.Next <= 0;
     end;
 
+    var
+        IsHandled: Boolean;
 
+    [IntegrationEvent(false, false)]
+    local procedure OnBeforeFilterInvoices(var CustomerNoFilter: Text; var CustomerPostingGroupFilter: Text; var PostingDate: Date; var SalesInvHdr: Record "Sales Invoice Header"; var IsHandled: Boolean)
+    begin
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnBeforeSendInvoices(var IsHandled: Boolean)
+    begin
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnAfterSetFilterAndSelections(var SalesInvoiceHeader2: Record "Sales Invoice Header"; var ReportSelection2: Record "Report Selections")
+    begin
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnAfterFilterInvoices(var SalesInvHdr: Record "Sales Invoice Header")
+    begin
+    end;
 }

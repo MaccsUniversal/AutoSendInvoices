@@ -1,4 +1,4 @@
-codeunit 60103 "Auto Send Email Body"
+codeunit 99006 "Auto Send Email Body"
 {
     procedure GetEmailBody(var SalesInvHdr: Record "Sales Invoice Header") Body: Text
     var
