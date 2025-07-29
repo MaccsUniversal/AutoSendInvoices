@@ -1,9 +1,11 @@
-codeunit 99007 "Send UK Invoices"
+codeunit 99009 "Send UK Invoices"
 {
+    TableNo = "Job Queue Entry";
     Permissions = tabledata "Email Related Record" = RMI;
     trigger OnRun()
     begin
-        SendInvoices();
+        TestEmail := Rec."Parameter String";
+        FilterInvoices();
     end;
 
     local procedure GetParameters(SalesInvoiceNo: Code[20]) SalesInvRepParam: Text
@@ -12,7 +14,7 @@ codeunit 99007 "Send UK Invoices"
         exit(SalesInvRepParam);
     end;
 
-    local procedure FilterInvoices() SalesInvHdr: Record "Sales Invoice Header"
+    local procedure FilterInvoices()
     var
         CustomerNoFilter: Text;
         CustomerPostingGroupFilter: Text;
@@ -20,9 +22,9 @@ codeunit 99007 "Send UK Invoices"
         SalesInvoiceHeader: Record "Sales Invoice Header";
     begin
         IsHandled := false;
-        OnBeforeFilterInvoices(CustomerNoFilter, CustomerPostingGroupFilter, PostingDate, SalesInvHdr, IsHandled);
+        OnBeforeFilterInvoices(CustomerNoFilter, CustomerPostingGroupFilter, PostingDate, SalesInvoiceHeader, IsHandled);
         if IsHandled then
-            exit(SalesInvHdr);
+            GetReportSelection(SalesInvoiceHeader);
         CustomerNoFilter := '<>LEM*';
         CustomerPostingGroupFilter := '<>NON NOTIFY|UK*';
         PostingDate := Today() - 1;
@@ -31,12 +33,11 @@ codeunit 99007 "Send UK Invoices"
         SalesInvoiceHeader.SetFilter("Customer Posting Group", CustomerPostingGroupFilter);
         SalesInvoiceHeader.SetFilter("Posting Date", Format(PostingDate));
         SalesInvoiceHeader.FindSet();
-        SalesInvHdr.Copy(SalesInvoiceHeader);
-        OnAfterFilterInvoices(SalesInvHdr);
-        exit(SalesInvHdr);
+        OnAfterFilterInvoices(SalesInvoiceHeader);
+        GetReportSelection(SalesInvoiceHeader);
     end;
 
-    local procedure GetReportSelection() SelectedReport: Record "Report Selections"
+    local procedure GetReportSelection(var FilteredSalesInvoiceHeader: Record "Sales Invoice Header")
     var
         ReportSelection: Record "Report Selections";
     begin
@@ -44,15 +45,13 @@ codeunit 99007 "Send UK Invoices"
         ReportSelection.FindSet();
         ReportSelection.SetRange("Report ID", ReportSelection."Report ID");
         ReportSelection.FindSet();
-        SelectedReport.Copy(ReportSelection);
+        SendInvoices(FilteredSalesInvoiceHeader, ReportSelection);
     end;
 
-    local procedure SendInvoices()
+    local procedure SendInvoices(var FilteredSalesInvoiceHeaders: Record "Sales Invoice Header"; var SelectedReport: Record "Report Selections")
     var
-        SalesInvoiceHeader2: Record "Sales Invoice Header";
         TempBlob: Codeunit "Temp Blob";
         Filename: Text;
-        ReportSelection2: Record "Report Selections";
         OutStr: OutStream;
         InStr: InStream;
         MailMgt: Codeunit "Mail Management";
@@ -60,43 +59,50 @@ codeunit 99007 "Send UK Invoices"
         EmailManagement: Codeunit Email;
         EmailMessage: Codeunit "Email Message";
         EmailBody: Codeunit "Auto Send Email Body";
+        EmailToUse: Text;
     begin
+        EmailToUse := TestEmail;
         IsHandled := false;
-        OnBeforeSendInvoices(IsHandled);
+        OnBeforeSendInvoices(FilteredSalesInvoiceHeaders, SelectedReport, IsHandled);
         if IsHandled then
             exit;
-        SalesInvoiceHeader2 := FilterInvoices();
-        ReportSelection2 := GetReportSelection();
-        OnAfterSetFilterAndSelections(SalesInvoiceHeader2, ReportSelection2);
         repeat
+            if TestEmail = '' then begin
+                EmailToUse := FilteredSalesInvoiceHeaders."Sell-to E-Mail";
+            end;
+
             EmailRelatedRecord.Reset();
-            EmailRelatedRecord.SetRange("System Id", SalesInvoiceHeader2.SystemId);
+            EmailRelatedRecord.SetRange("System Id", FilteredSalesInvoiceHeaders.SystemId);
             if not EmailRelatedRecord.FindSet() then begin
-                if (SalesInvoiceHeader2."Sell-to E-Mail" = '') then
+                if (EmailToUse = '') then
                     continue;
 
-                MailMgt.CheckValidEmailAddresses(SalesInvoiceHeader2."Sell-to E-Mail");
-                Filename := StrSubstNo('Sales Invoice_%1.pdf', SalesInvoiceHeader2."No.");
+                MailMgt.CheckValidEmailAddresses(EmailToUse);
+                Filename := StrSubstNo('Sales Invoice_%1.pdf', FilteredSalesInvoiceHeaders."No.");
                 TempBlob.CreateOutStream(OutStr);
-                Report.SaveAs(ReportSelection2."Report ID", GetParameters(SalesInvoiceHeader2."No."), ReportFormat::Pdf, OutStr);
+                Report.SaveAs(SelectedReport."Report ID", GetParameters(FilteredSalesInvoiceHeaders."No."), ReportFormat::Pdf, OutStr);
                 TempBlob.CreateInStream(InStr);
-                EmailMessage.Create(SalesInvoiceHeader2."Sell-to E-Mail",
+                EmailMessage.Create('itadmin@e-2go.net',
                     Filename,
-                    EmailBody.GetEmailBody(SalesInvoiceHeader2));
+                    EmailBody.GetEmailBody(FilteredSalesInvoiceHeaders));
                 EmailMessage.AddAttachment(Filename, 'application/pdf', InStr);
                 if EmailManagement.Send(EmailMessage) then begin
                     EmailRelatedRecord.Init();
                     EmailRelatedRecord."Email Message Id" := EmailMessage.GetId();
                     EmailRelatedRecord."Table Id" := Database::"Sales Invoice Header";
-                    EmailRelatedRecord."System Id" := SalesInvoiceHeader2.SystemId;
+                    EmailRelatedRecord."System Id" := FilteredSalesInvoiceHeaders.SystemId;
+                    EmailRelatedRecord."Relation Type" := "Email Relation Type"::"Related Entity";
+                    EmailRelatedRecord."Relation Origin" := "Email Relation Origin"::"Compose Context";
                     EmailRelatedRecord.Insert();
                 end;
             end;
-        until SalesInvoiceHeader2.Next <= 0;
+        until FilteredSalesInvoiceHeaders.Next <= 0;
+        OnAfterSendInvoices(FilteredSalesInvoiceHeaders, SelectedReport);
     end;
 
     var
         IsHandled: Boolean;
+        TestEmail: Text;
 
     [IntegrationEvent(false, false)]
     local procedure OnBeforeFilterInvoices(var CustomerNoFilter: Text; var CustomerPostingGroupFilter: Text; var PostingDate: Date; var SalesInvHdr: Record "Sales Invoice Header"; var IsHandled: Boolean)
@@ -104,12 +110,12 @@ codeunit 99007 "Send UK Invoices"
     end;
 
     [IntegrationEvent(false, false)]
-    local procedure OnBeforeSendInvoices(var IsHandled: Boolean)
+    local procedure OnBeforeSendInvoices(var FilteredSalesInvoiceHeaders: Record "Sales Invoice Header"; var SelectedReport: Record "Report Selections"; var IsHandled: Boolean)
     begin
     end;
 
     [IntegrationEvent(false, false)]
-    local procedure OnAfterSetFilterAndSelections(var SalesInvoiceHeader2: Record "Sales Invoice Header"; var ReportSelection2: Record "Report Selections")
+    local procedure OnAfterSendInvoices(var SalesInvHdr: Record "Sales Invoice Header"; var ReportSelection: Record "Report Selections")
     begin
     end;
 

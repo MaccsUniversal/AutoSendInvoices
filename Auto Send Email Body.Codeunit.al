@@ -1,12 +1,11 @@
-codeunit 99006 "Auto Send Email Body"
+codeunit 99008 "Auto Send Email Body"
 {
     procedure GetEmailBody(var SalesInvHdr: Record "Sales Invoice Header") Body: Text
     var
         IsHandled: Boolean;
-        NewBody: Text;
     begin
         IsHandled := false;
-        OnBeforeGetEmailBody(IsHandled, NewBody, SalesInvHdr);
+        OnBeforeGetEmailBody(IsHandled, Body, SalesInvHdr);
         if IsHandled then
             exit(Body);
         Body := 'Dear customer,' +
