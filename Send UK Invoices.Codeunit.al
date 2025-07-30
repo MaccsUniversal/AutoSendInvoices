@@ -4,8 +4,17 @@ codeunit 99009 "Send UK Invoices"
     Permissions = tabledata "Email Related Record" = RMI;
     trigger OnRun()
     begin
-        TestEmail := Rec."Parameter String";
+        SetValues(Rec."Parameter String");
         FilterInvoices();
+    end;
+
+    local procedure SetValues(var ParamterString: Text)
+    begin
+        JsonObj.ReadFrom(ParamterString);
+        CustomerNoFilter := JsonObj.GetText('Customer No.');
+        CustomerPostingGroupFilter := JsonObj.GetText('Customer Posting Group');
+        OffsetDays := JsonObj.GetInteger('OffsetDays');
+        TestEmail := JsonObj.GetText('Test Email');
     end;
 
     local procedure GetParameters(SalesInvoiceNo: Code[20]) SalesInvRepParam: Text
@@ -16,18 +25,14 @@ codeunit 99009 "Send UK Invoices"
 
     local procedure FilterInvoices()
     var
-        CustomerNoFilter: Text;
-        CustomerPostingGroupFilter: Text;
         PostingDate: Date;
         SalesInvoiceHeader: Record "Sales Invoice Header";
     begin
         IsHandled := false;
-        OnBeforeFilterInvoices(CustomerNoFilter, CustomerPostingGroupFilter, PostingDate, SalesInvoiceHeader, IsHandled);
+        OnBeforeFilterInvoices(SalesInvoiceHeader, IsHandled);
         if IsHandled then
             GetReportSelection(SalesInvoiceHeader);
-        CustomerNoFilter := '<>LEM*';
-        CustomerPostingGroupFilter := '<>NON NOTIFY|UK*';
-        PostingDate := Today() - 1;
+        PostingDate := Today() - OffsetDays;
         SalesInvoiceHeader.Reset();
         SalesInvoiceHeader.SetFilter("Sell-to Customer No.", CustomerNoFilter);
         SalesInvoiceHeader.SetFilter("Customer Posting Group", CustomerPostingGroupFilter);
@@ -103,9 +108,13 @@ codeunit 99009 "Send UK Invoices"
     var
         IsHandled: Boolean;
         TestEmail: Text;
+        JsonObj: JsonObject;
+        CustomerNoFilter: Text;
+        CustomerPostingGroupFilter: Text;
+        OffsetDays: Integer;
 
     [IntegrationEvent(false, false)]
-    local procedure OnBeforeFilterInvoices(var CustomerNoFilter: Text; var CustomerPostingGroupFilter: Text; var PostingDate: Date; var SalesInvHdr: Record "Sales Invoice Header"; var IsHandled: Boolean)
+    local procedure OnBeforeFilterInvoices(var SalesInvHdr: Record "Sales Invoice Header"; var IsHandled: Boolean)
     begin
     end;
 
