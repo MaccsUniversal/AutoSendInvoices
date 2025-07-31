@@ -10,7 +10,7 @@ codeunit 99009 "Send UK Invoices"
 
     local procedure SetValues(var ParamterString: Text)
     begin
-        JsonObj.ReadFrom('{"Invoice No.": "","Customer No.": "<>LEM*","Customer Posting Group": "NON NOTIFY|UK*","OffsetDays": 50,"Test Email": "itadmin@e-2go.net"}');
+        JsonObj.ReadFrom(ParamterString);
         SalesInvoiceNo := JsonObj.GetText('Invoice No.');
         CustomerNoFilter := JsonObj.GetText('Customer No.');
         CustomerPostingGroupFilter := JsonObj.GetText('Customer Posting Group');
@@ -81,18 +81,19 @@ codeunit 99009 "Send UK Invoices"
 
     local procedure UpdateEmailRelatedRecords(var MsgId: Guid; var SalesInvSystemId: Guid)
     begin
+        Clear(EmailRelatedRecord);
         EmailRelatedRecord.Init();
         EmailRelatedRecord."Email Message Id" := MsgId;
         EmailRelatedRecord."Table Id" := Database::"Sales Invoice Header";
         EmailRelatedRecord."System Id" := SalesInvSystemId;
         EmailRelatedRecord."Relation Type" := "Email Relation Type"::"Related Entity";
         EmailRelatedRecord."Relation Origin" := "Email Relation Origin"::"Compose Context";
-        EmailRelatedRecord.Insert();
+        EmailRelatedRecord.Insert(true);
     end;
 
     local procedure CheckEmailRelatedRecords(var SalesInvoiceSystemId: Guid) Found: Boolean
     begin
-        EmailRelatedRecord.Reset();
+        Clear(EmailRelatedRecord);
         EmailRelatedRecord.SetRange("System Id", SalesInvoiceSystemId);
         Found := EmailRelatedRecord.FindSet();
         exit(Found);
