@@ -8,8 +8,11 @@ codeunit 99008 "Auto Send Email Body"
         OnBeforeGetEmailBody(IsHandled, Body, SalesInvHdr);
         if IsHandled then
             exit(Body);
-        Body := 'Dear customer,' +
-                ' Thank you for your recent order.  Please find your invoice ' + SalesInvHdr."No." + ' attached. Please ensure that and price, delivery or other invoice discrepancy is notified by email within 48 HOURS of the invoice date to credit@e-2go.net If you have already paid for your order in full, the invoice is for information only. Otherwise please can you pay by the stated due date to the bank details quoted on the invoice.';
+        Body := 'Dear customer,' + '<br>' +
+                'Thank you for your recent order.' + '<br>' +
+                'Please find your invoice ' + '<b>' + SalesInvHdr."No." + '</b>' + ' attached.' + '<br>' +
+                'Please ensure that and price, delivery or other invoice discrepancy is notified by email within 48 HOURS of the invoice date to credit@e-2go.net.' + '<br>' +
+                'If you have already paid for your order in full, the invoice is for information only. Otherwise please can you pay by the stated due date to the bank details quoted on the invoice.';
         OnAfterGetEmailBody(Body, SalesInvHdr);
         exit(Body);
     end;
