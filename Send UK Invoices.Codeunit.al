@@ -72,6 +72,8 @@ codeunit 99009 "Send UK Invoices"
             EmailRelatedRecordExists := CheckEmailRelatedRecords(FilteredSalesInvoiceHeaders.SystemId);
             if not EmailRelatedRecordExists then begin
                 MessageId := SendEmailMsg(EmailToUse, FilteredSalesInvoiceHeaders, SelectedReport);
+                if EmailToUse = TestEmail then
+                    continue;
                 if not IsNullGuid(MessageId) then begin
                     UpdateEmailRelatedRecords(MessageId, FilteredSalesInvoiceHeaders.SystemId);
                 end;
