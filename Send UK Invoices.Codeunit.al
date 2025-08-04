@@ -10,6 +10,10 @@ codeunit 99009 "Send UK Invoices"
 
     local procedure SetValues(var ParamterString: Text)
     begin
+        IsHandled := false;
+        OnBefofreSetValues(ParamterString);
+        if IsHandled then
+            exit;
         JsonObj.ReadFrom(ParamterString);
         SalesInvoiceNo := JsonObj.GetText('Invoice No.');
         CustomerNoFilter := JsonObj.GetText('Customer No.');
@@ -101,7 +105,7 @@ codeunit 99009 "Send UK Invoices"
         exit(Found);
     end;
 
-    local procedure SendEmailMsg(Recipient: Text; var SalesInvoice: Record "Sales Invoice Header"; var InvoiceReport: Record "Report Selections") EmailMsgId: Guid
+    local procedure SendEmailMsg(var Recipient: Text; var SalesInvoice: Record "Sales Invoice Header"; var InvoiceReport: Record "Report Selections") EmailMsgId: Guid
     var
         TempBlob: Codeunit "Temp Blob";
         Filename: Text;
@@ -112,7 +116,7 @@ codeunit 99009 "Send UK Invoices"
         EmailBody: Codeunit "Auto Send Email Body";
     begin
         IsHandled := false;
-        OnBeforeSendEmailMsg(SalesInvoice, InvoiceReport, IsHandled);
+        OnBeforeSendEmailMsg(Recipient, SalesInvoice, InvoiceReport, IsHandled);
         if IsHandled then
             exit(EmailMsgId);
 
@@ -142,13 +146,19 @@ codeunit 99009 "Send UK Invoices"
         SalesInvoiceNo: Text;
         EmailRelatedRecord: Record "Email Related Record";
 
+
+    [IntegrationEvent(false, false)]
+    local procedure OnBefofreSetValues(var ParamterString: Text)
+    begin
+    end;
+
     [IntegrationEvent(false, false)]
     local procedure OnBeforeFilterInvoices(var SalesInvHdr: Record "Sales Invoice Header"; var IsHandled: Boolean)
     begin
     end;
 
     [IntegrationEvent(false, false)]
-    local procedure OnBeforeSendEmailMsg(var FilteredSalesInvoiceHeaders: Record "Sales Invoice Header"; var SelectedReport: Record "Report Selections"; var IsHandled: Boolean)
+    local procedure OnBeforeSendEmailMsg(var ToRecipient: Text; var FilteredSalesInvoiceHeaders: Record "Sales Invoice Header"; var SelectedReport: Record "Report Selections"; var IsHandled: Boolean)
     begin
     end;
 
