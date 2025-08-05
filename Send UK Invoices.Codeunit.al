@@ -94,7 +94,8 @@ codeunit 99009 "Send UK Invoices"
         EmailRelatedRecord."System Id" := SalesInvSystemId;
         EmailRelatedRecord."Relation Type" := "Email Relation Type"::"Related Entity";
         EmailRelatedRecord."Relation Origin" := "Email Relation Origin"::"Compose Context";
-        EmailRelatedRecord.Insert(true);
+        EmailRelatedRecord.Insert();
+        Commit();
     end;
 
     local procedure CheckEmailRelatedRecords(var SalesInvoiceSystemId: Guid) Found: Boolean
