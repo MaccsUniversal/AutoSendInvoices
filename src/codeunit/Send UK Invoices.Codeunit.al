@@ -80,14 +80,17 @@ codeunit 99009 "Send UK Invoices"
     var
         CustomerReportLayout: Record "Custom Report Layout";
     begin
-        if (FilteredSalesInvoiceHeader."Customer Posting Group" = 'NON-NOTIFY') then begin
-            CustomerReportLayout.SetRange("Company Name", CompanyName);
-            CustomerReportLayout.SetRange("Report ID", 1306);
-            CustomerReportLayout.SetRange(Code, '1306-000005');
-            CustomerReportLayout.FindSet();
-            exit(CustomerReportLayout);
+        CustomerReportLayout.Reset();
+        if (FilteredSalesInvoiceHeader."Customer Posting Group" = 'NON NOTIFY') or
+            (FilteredSalesInvoiceHeader."Customer Posting Group" = 'EC-END') or
+            (FilteredSalesInvoiceHeader."Customer Posting Group" = 'EC-DIST') or
+            (FilteredSalesInvoiceHeader."Customer Posting Group" = 'EC-PACK') or
+            (FilteredSalesInvoiceHeader."Customer Posting Group" = 'EC-AIR') then begin
+            CustomerReportLayout.Get('1306-000006');
+        end else begin
+            CustomerReportLayout.Get('1306-000005');
         end;
-
+        exit(CustomerReportLayout);
     end;
 
     local procedure UpdateEmailRelatedRecords(var MsgId: Guid; var SalesInvSystemId: Guid)
@@ -122,6 +125,7 @@ codeunit 99009 "Send UK Invoices"
         EmailBody: Codeunit "Auto Send Email Body";
         EmailList: List of [Text];
         CcEmailList: List of [Text];
+        ReportLayout: Record "Report Layout Selection";
     begin
         IsHandled := false;
         OnBeforeSendEmailMsg(Recipient, SalesInvoice, InvoiceReport, IsHandled);
@@ -133,8 +137,14 @@ codeunit 99009 "Send UK Invoices"
         Clear(EmailMessage);
         Filename := StrSubstNo('Sales Invoice_%1', SalesInvoice."No.");
         TempBlob.CreateOutStream(OutStr);
+
+        ReportLayout.Reset();
+        ReportLayout.Get(InvoiceReport."Report ID", CompanyName);
+        ReportLayout.SetTempLayoutSelected(InvoiceReport.Code);
+
         if not Report.SaveAs(InvoiceReport."Report ID", GetReportParameters(SalesInvoice."No."), ReportFormat::Pdf, OutStr) then
             exit(EmailMsgId);
+
         EmailList := Recipient.Split(';');
         CcEmailList := SalesInvoice."Sell-to Cc E-Mail".Split(';');
         // ToRecipients, Subject, Body, HtmlFormatted, CCRecipients, BCCRecipients, false
