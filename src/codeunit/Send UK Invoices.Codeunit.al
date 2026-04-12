@@ -51,6 +51,7 @@ codeunit 99009 "Send UK Invoices"
     local procedure GetReportSelection(var FilteredSalesInvoiceHeader: Record "Sales Invoice Header")
     var
         ReportSelection: Record "Report Selections";
+        CustomerReportSelection: Record "Custom Report Selection";
     begin
         ReportSelection.SetRange(Usage, ReportSelection.Usage::"S.Invoice");
         ReportSelection.FindSet();
@@ -115,6 +116,8 @@ codeunit 99009 "Send UK Invoices"
         EmailManagement: Codeunit Email;
         EmailMessage: Codeunit "Email Message";
         EmailBody: Codeunit "Auto Send Email Body";
+        EmailList: List of [Text];
+        CcEmailList: List of [Text];
     begin
         IsHandled := false;
         OnBeforeSendEmailMsg(Recipient, SalesInvoice, InvoiceReport, IsHandled);
@@ -128,7 +131,10 @@ codeunit 99009 "Send UK Invoices"
         TempBlob.CreateOutStream(OutStr);
         if not Report.SaveAs(InvoiceReport."Report ID", GetReportParameters(SalesInvoice."No."), ReportFormat::Pdf, OutStr) then
             exit(EmailMsgId);
-        EmailMessage.Create(Recipient, Filename, EmailBody.GetEmailBody(SalesInvoice), true);
+        EmailList := Recipient.Split(';');
+        CcEmailList := SalesInvoice."Sell-to Cc E-Mail".Split(';');
+        // ToRecipients, Subject, Body, HtmlFormatted, CCRecipients, BCCRecipients, false
+        EmailMessage.Create(EmailList, Filename, EmailBody.GetEmailBody(SalesInvoice), true, CcEmailList, EmailList);
         TempBlob.CreateInStream(InStr);
         EmailMessage.AddAttachment(Filename + '.pdf', 'application/pdf', InStr);
         if EmailManagement.Send(EmailMessage) then
