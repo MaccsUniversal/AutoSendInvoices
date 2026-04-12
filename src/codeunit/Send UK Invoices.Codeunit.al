@@ -45,27 +45,16 @@ codeunit 99009 "Send UK Invoices"
         SalesInvoiceHeader.SetFilter("Posting Date", Format(PostingDate));
         SalesInvoiceHeader.FindSet();
         OnAfterFilterInvoices(SalesInvoiceHeader);
-        GetReportSelection(SalesInvoiceHeader);
+        SendInvoices(SalesInvoiceHeader);
     end;
 
-    local procedure GetReportSelection(var FilteredSalesInvoiceHeader: Record "Sales Invoice Header")
-    var
-        ReportSelection: Record "Report Selections";
-        CustomerReportSelection: Record "Custom Report Selection";
-    begin
-        ReportSelection.SetRange(Usage, ReportSelection.Usage::"S.Invoice");
-        ReportSelection.FindSet();
-        ReportSelection.SetRange("Report ID", ReportSelection."Report ID");
-        ReportSelection.FindSet();
-        SendInvoices(FilteredSalesInvoiceHeader, ReportSelection);
-    end;
-
-    local procedure SendInvoices(var FilteredSalesInvoiceHeaders: Record "Sales Invoice Header"; var SelectedReport: Record "Report Selections")
+    local procedure SendInvoices(var FilteredSalesInvoiceHeaders: Record "Sales Invoice Header")
     var
         EmailToUse: Text;
         MessageId: Guid;
         EmailRelatedRecordExists: Boolean;
         MailMgt: Codeunit "Mail Management";
+        SelectedCustomerReportLayout: Record "Custom Report Layout";
     begin
         EmailToUse := TestEmail;
         repeat
@@ -76,7 +65,8 @@ codeunit 99009 "Send UK Invoices"
             MailMgt.CheckValidEmailAddresses(EmailToUse);
             EmailRelatedRecordExists := CheckEmailRelatedRecords(FilteredSalesInvoiceHeaders.SystemId);
             if not EmailRelatedRecordExists then begin
-                MessageId := SendEmailMsg(EmailToUse, FilteredSalesInvoiceHeaders, SelectedReport);
+                SelectedCustomerReportLayout := GetReportSelection(FilteredSalesInvoiceHeaders);
+                MessageId := SendEmailMsg(EmailToUse, FilteredSalesInvoiceHeaders, SelectedCustomerReportLayout);
                 if EmailToUse = TestEmail then
                     continue;
                 if not IsNullGuid(MessageId) then begin
@@ -84,6 +74,20 @@ codeunit 99009 "Send UK Invoices"
                 end;
             end;
         until FilteredSalesInvoiceHeaders.Next <= 0;
+    end;
+
+    local procedure GetReportSelection(var FilteredSalesInvoiceHeader: Record "Sales Invoice Header"): Record "Custom Report Layout"
+    var
+        CustomerReportLayout: Record "Custom Report Layout";
+    begin
+        if (FilteredSalesInvoiceHeader."Customer Posting Group" = 'NON-NOTIFY') then begin
+            CustomerReportLayout.SetRange("Company Name", CompanyName);
+            CustomerReportLayout.SetRange("Report ID", 1306);
+            CustomerReportLayout.SetRange(Code, '1306-000005');
+            CustomerReportLayout.FindSet();
+            exit(CustomerReportLayout);
+        end;
+
     end;
 
     local procedure UpdateEmailRelatedRecords(var MsgId: Guid; var SalesInvSystemId: Guid)
@@ -107,7 +111,7 @@ codeunit 99009 "Send UK Invoices"
         exit(Found);
     end;
 
-    local procedure SendEmailMsg(var Recipient: Text; var SalesInvoice: Record "Sales Invoice Header"; var InvoiceReport: Record "Report Selections") EmailMsgId: Guid
+    local procedure SendEmailMsg(var Recipient: Text; var SalesInvoice: Record "Sales Invoice Header"; var InvoiceReport: Record "Custom Report Layout") EmailMsgId: Guid
     var
         TempBlob: Codeunit "Temp Blob";
         Filename: Text;
@@ -165,12 +169,12 @@ codeunit 99009 "Send UK Invoices"
     end;
 
     [IntegrationEvent(false, false)]
-    local procedure OnBeforeSendEmailMsg(var ToRecipient: Text; var FilteredSalesInvoiceHeaders: Record "Sales Invoice Header"; var SelectedReport: Record "Report Selections"; var IsHandled: Boolean)
+    local procedure OnBeforeSendEmailMsg(var ToRecipient: Text; var FilteredSalesInvoiceHeaders: Record "Sales Invoice Header"; var SelectedReport: Record "Custom Report Layout"; var IsHandled: Boolean)
     begin
     end;
 
     [IntegrationEvent(false, false)]
-    local procedure OnAfterSendEmailMsg(var SalesInvHdr: Record "Sales Invoice Header"; var ReportSelection: Record "Report Selections")
+    local procedure OnAfterSendEmailMsg(var SalesInvHdr: Record "Sales Invoice Header"; var ReportSelection: Record "Custom Report Layout")
     begin
     end;
 
