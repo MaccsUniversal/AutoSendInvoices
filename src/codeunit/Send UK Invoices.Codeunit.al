@@ -86,9 +86,9 @@ codeunit 99009 "Send UK Invoices"
             (FilteredSalesInvoiceHeader."Customer Posting Group" = 'EC-DIST') or
             (FilteredSalesInvoiceHeader."Customer Posting Group" = 'EC-PACK') or
             (FilteredSalesInvoiceHeader."Customer Posting Group" = 'EC-AIR') then begin
-            CustomerReportLayout.Get('1306-000006');
-        end else begin
             CustomerReportLayout.Get('1306-000005');
+        end else begin
+            CustomerReportLayout.Get('1306-000006');
         end;
         exit(CustomerReportLayout);
     end;
