@@ -43,7 +43,8 @@ codeunit 99009 "Send UK Invoices"
         SalesInvoiceHeader.SetFilter("Sell-to Customer No.", CustomerNoFilter);
         SalesInvoiceHeader.SetFilter("Customer Posting Group", CustomerPostingGroupFilter);
         SalesInvoiceHeader.SetFilter("Posting Date", Format(PostingDate));
-        SalesInvoiceHeader.FindSet();
+        if not SalesInvoiceHeader.FindSet() then
+            exit;
         OnAfterFilterInvoices(SalesInvoiceHeader);
         SendInvoices(SalesInvoiceHeader);
     end;
