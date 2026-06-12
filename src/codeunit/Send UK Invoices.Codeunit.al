@@ -49,6 +49,8 @@ codeunit 99009 "Send UK Invoices"
         SendInvoices(SalesInvoiceHeader);
     end;
 
+
+    [TryFunction]
     local procedure SendInvoices(var FilteredSalesInvoiceHeaders: Record "Sales Invoice Header")
     var
         EmailToUse: Text;
